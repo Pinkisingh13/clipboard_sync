@@ -92,24 +92,24 @@ class ClipboardService : Service() {
 
         val listener = object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                Log.i(TAG, "✅ Connected to Mac at $url")
+                Log.i(TAG, "Connected to Mac at $url")
                 this@ClipboardService.webSocket = webSocket
                 reconnectDelay = 1000L // Reset delay on successful connection
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                Log.i(TAG, "📋 Received from Mac: $text")
+                Log.i(TAG, "Received from Mac: $text")
                 handler.post { writeToClipboard(text) }
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                Log.w(TAG, "❌ Connection closed: $reason")
+                Log.w(TAG, "Connection closed: $reason")
                 this@ClipboardService.webSocket = null
                 reconnect()
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                Log.e(TAG, "⚠️ Connection failed: ${t.message}")
+                Log.e(TAG, "Connection failed: ${t.message}")
                 this@ClipboardService.webSocket = null
                 reconnect()
             }
@@ -120,7 +120,7 @@ class ClipboardService : Service() {
 
     private fun reconnect() {
         handler.postDelayed({
-            Log.i(TAG, "🔄 Reconnecting in ${reconnectDelay}ms...")
+            Log.i(TAG, "Reconnecting in ${reconnectDelay}ms...")
             connectToServer()
             reconnectDelay = (reconnectDelay * 2).coerceAtMost(maxDelay)
         }, reconnectDelay)
@@ -167,7 +167,7 @@ class ClipboardService : Service() {
         webSocket = null
         handler.removeCallbacksAndMessages(null)
 
-        Log.i(TAG, "🛑 Service stopped")
+        Log.i(TAG, "Service stopped")
     }
 
     override fun onBind(intent: Intent?): IBinder? {

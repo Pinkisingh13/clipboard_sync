@@ -47,9 +47,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     await _bonsoirDiscovery?.initialize();
 
-    // If you want to listen to the discovery :
+    
     _bonsoirDiscovery?.eventStream!.listen((event) async{
-      // `eventStream` is not null as the discovery instance is "ready" !
+   
 
          switch (event) {
 
@@ -59,12 +59,12 @@ class _HomeScreenState extends State<HomeScreen> {
         break;
 
       case BonsoirDiscoveryServiceResolvedEvent():
-        // The service is now fully resolved. You can read its network address.
+  
         print('Service resolved successfully: ${event.service?.name}');
         print('IP Addresses: ${event.service?.hostAddresses}');
         print('Port: ${event.service?.port}');
 
-        // Only connect if not already connecting/connected
+    
         if (!isConnecting && !isServiceRunning) {
           if(event.service?.hostAddress != null && event.service?.port != null){
             isConnecting = true;
@@ -109,7 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('✅ $result')));
+        ).showSnackBar(SnackBar(content: Text('$result')));
       }
     } on PlatformException catch (e) {
       setState(() {
@@ -119,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('❌ ${e.message}')));
+        ).showSnackBar(SnackBar(content: Text(' ${e.message}')));
       }
     }
   }
@@ -139,13 +139,13 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('🛑 $result')));
+        ).showSnackBar(SnackBar(content: Text(' $result')));
       }
     } on PlatformException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('❌ ${e.message}')));
+        ).showSnackBar(SnackBar(content: Text('${e.message}')));
       }
     }
   }
@@ -248,6 +248,66 @@ class _HomeScreenState extends State<HomeScreen> {
             const Text('1. Make sure Mac server is running'),
             const Text('2. Tap "Start Sync" - Mac will be found automatically'),
             const Text('3. Copy text on either device - it syncs instantly!'),
+
+            if (isServiceRunning) ...[
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.blue, width: 2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.science, color: Colors.blue, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Demo Test Area',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Type here and copy to test clipboard sync:',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'Type text here, select and copy',
+                        border: const OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Or paste here to see synced text from desktop:',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'Long press and paste text from desktop',
+                        border: const OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.green[50],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

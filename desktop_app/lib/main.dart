@@ -62,7 +62,7 @@ class _ServerScreenState extends State<ServerScreen> {
         );
         return result.stdout.toString().trim();
       } else if (Platform.isLinux) {
-        // Try xclip first
+       
         final result = await Process.run(
           'xclip',
           ['-selection', 'clipboard', '-o'],
@@ -210,7 +210,7 @@ class _ServerScreenState extends State<ServerScreen> {
       connectedClients = 0;
     });
 
-    print('🛑 Server stopped');
+    print('Server stopped');
   }
 
   @override
@@ -285,6 +285,64 @@ class _ServerScreenState extends State<ServerScreen> {
                   'Open the Android app to connect automatically via mDNS',
                   style: TextStyle(color: Colors.grey),
                   textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                Container(
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.blue, width: 2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.science, color: Colors.blue, size: 20),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Demo Test Area',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Type here and copy to test clipboard sync:',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          hintText: 'Type text here, then select and copy (Cmd+C)',
+                          border: const OutlineInputBorder(),
+                          filled: true,
+                          fillColor: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Or paste here to see synced text from Android:',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          hintText: 'Press Cmd+V to paste text from Android',
+                          border: const OutlineInputBorder(),
+                          filled: true,
+                          fillColor: Colors.green[50],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ],
