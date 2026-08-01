@@ -134,7 +134,7 @@ class ClipboardService : Service() {
 
                 if (text.isNotEmpty() && text != lastClipboardText) {
                     lastClipboardText = text
-                    Log.i(TAG, "📱 Clipboard changed: $text")
+                    Log.i(TAG, "Clipboard changed: $text")
                     webSocket?.send(text)
                 }
             }

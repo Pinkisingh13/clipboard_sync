@@ -208,7 +208,7 @@ class _ServerScreenState extends State<ServerScreen> {
 
         webSocket.stream.listen(
           (event) async {
-            debugPrint('📱 Received from Android: $event');
+            debugPrint('Received from Android: $event');
             await _writeClipboard(event.toString());
             _lastClipboard = event.toString();
           },
@@ -229,7 +229,7 @@ class _ServerScreenState extends State<ServerScreen> {
         statusMessage = 'Running on $localIp:$port';
       });
 
-      debugPrint('🚀 Server started on $localIp:$port');
+      debugPrint('Server started on $localIp:$port');
     } catch (e) {
       setState(() {
         statusMessage = 'Error: $e';

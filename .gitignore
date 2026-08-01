@@ -48,3 +48,10 @@ doc/
 
 # Backup folders
 backup_kotlin/
+
+# Release files (uploaded to GitHub Releases, not committed)
+*.zip
+*.apk
+*.dmg
+*.exe
+*.tar.gz
