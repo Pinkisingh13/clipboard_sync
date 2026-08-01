@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,6 +34,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   static const platform = MethodChannel('clipboard_sync');
   BonsoirDiscovery? _bonsoirDiscovery;
+  List<Map<String, dynamic>> serviceslist = [];
 
   bool isServiceRunning = false;
   bool isConnecting = false;
@@ -40,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> startDiscovering() async {
     setState(() {
+      serviceslist.clear();
       statusMessage = 'Looking for Mac...';
     });
 
@@ -50,34 +53,33 @@ class _HomeScreenState extends State<HomeScreen> {
     _bonsoirDiscovery?.eventStream!.listen((event) async {
       switch (event) {
         case BonsoirDiscoveryServiceFoundEvent():
-          print('Service found but not yet resolved: ${event.service.name}');
+          log('Service found but not yet resolved: ${event.service.name}');
           event.service?.resolve(_bonsoirDiscovery!.serviceResolver);
           break;
 
         case BonsoirDiscoveryServiceResolvedEvent():
-          print('Service resolved successfully: ${event.service?.name}');
-          print('IP Addresses: ${event.service?.hostAddresses}');
-          print('Port: ${event.service?.port}');
+          log('Service resolved successfully: ${event.service?.name}');
+          log('IP Addresses: ${event.service?.hostAddresses}');
+          log('Port: ${event.service?.port}');
 
-          if (!isConnecting && !isServiceRunning) {
-            if (event.service?.hostAddress != null &&
-                event.service?.port != null) {
-              isConnecting = true;
-              await startService(
-                event.service.hostAddress!,
-                event.service.port,
-              );
-              isConnecting = false;
-            }
+          if (event.service != null) {
+            setState(() {
+              serviceslist.add({
+                'name': event.service.name,
+                'ip': event.service.hostAddress,
+                'port': event.service.port,
+              });
+            });
           }
+
           break;
 
         case BonsoirDiscoveryServiceLostEvent():
-          print('Service lost from the network: ${event.service?.name}');
+          log('Service lost from the network: ${event.service?.name}');
           break;
 
         default:
-          print('Other event occurred: $event');
+          log('Other event occurred: $event');
           break;
       }
     });
@@ -100,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('$result')));
+        ).showSnackBar(SnackBar(content: Text(result)));
       }
     } on PlatformException catch (e) {
       setState(() {
@@ -185,7 +187,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // Show loading indicator while discovering
             if (_bonsoirDiscovery != null && !isServiceRunning) ...[
               const SizedBox(height: 16),
               Row(
@@ -208,6 +209,31 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
             const SizedBox(height: 24),
+
+            if (serviceslist.isNotEmpty && !isServiceRunning) ...[
+              const SizedBox(height: 24),
+              const Text(
+                'Found Servers:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              ...serviceslist.map((server) {
+                return Card(
+                  child: ListTile(
+                    leading: Icon(Icons.computer, color: Colors.blue),
+                    title: Text(server['name']),
+                    subtitle: Text(server['ip']),
+                    trailing: Icon(Icons.arrow_forward_ios),
+                    onTap: () {
+                      startService(server['ip'], server['port']);
+                    },
+                  ),
+                );
+              }),
+            ],
+
+            const SizedBox(height: 24),
+
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -249,7 +275,10 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 24),
               const Text(
                 'Connected! Copy text on either device to sync',
-                style: TextStyle(color: Color.fromARGB(255, 121, 120, 120), fontSize: 14),
+                style: TextStyle(
+                  color: Color.fromARGB(255, 121, 120, 120),
+                  fontSize: 14,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],

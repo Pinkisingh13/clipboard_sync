@@ -53,7 +53,6 @@ class _ServerScreenState extends State<ServerScreen> {
     _getLocalIp();
   }
 
-  // Cross-platform clipboard helper functions
   Future<String> _readClipboard() async {
     try {
       if (Platform.isMacOS) {
@@ -74,7 +73,7 @@ class _ServerScreenState extends State<ServerScreen> {
         return result.stdout.toString().trim();
       }
     } catch (e) {
-      print('Error reading clipboard: $e');
+      debugPrint('Error reading clipboard: $e');
     }
     return '';
   }
@@ -82,13 +81,13 @@ class _ServerScreenState extends State<ServerScreen> {
   Future<void> _writeClipboard(String text) async {
     try {
       if (Platform.isMacOS) {
-        // Use stdin to avoid shell injection
+    
         final process = await Process.start('pbcopy', []);
         process.stdin.add(utf8.encode(text));
         await process.stdin.close();
         await process.exitCode;
       } else if (Platform.isWindows) {
-        // Fix: Use stdin to pass text safely
+      
         final process = await Process.start('powershell', [
           '-NoProfile',
           '-Command',
@@ -108,13 +107,13 @@ class _ServerScreenState extends State<ServerScreen> {
         await process.exitCode;
       }
     } catch (e) {
-      print('Error writing clipboard: $e');
+      debugPrint('Error writing clipboard: $e');
     }
   }
 
   Future<void> startBonjoir() async {
     final bonsoircontent = BonsoirService(
-      name: "clipboard sync service",
+      name: "clipboard sync ${Platform.localHostname}",
       type: '_clipboardsync._tcp',
       port: 8080,
     );
@@ -145,7 +144,6 @@ class _ServerScreenState extends State<ServerScreen> {
           final ip = addr.address;
           int currentPriority = 0;
 
-          // Priority order: 192.168.* > 10.* > 172.16-31.* > other private
           if (ip.startsWith('192.168.')) {
             currentPriority = 4;
           } else if (ip.startsWith('10.')) {
@@ -156,7 +154,7 @@ class _ServerScreenState extends State<ServerScreen> {
               currentPriority = 2;
             }
           } else {
-            currentPriority = 1; // Any other non-loopback
+            currentPriority = 1;
           }
 
           if (currentPriority > priority) {
@@ -182,26 +180,24 @@ class _ServerScreenState extends State<ServerScreen> {
       final ip = InternetAddress.anyIPv4;
       const port = 8080;
 
-      // Start single clipboard polling timer for all clients
-      _clipboardPollTimer = Timer.periodic(
-        const Duration(milliseconds: 100),
-        (timer) async {
-          String current = await _readClipboard();
+      _clipboardPollTimer = Timer.periodic(const Duration(milliseconds: 100), (
+        timer,
+      ) async {
+        String current = await _readClipboard();
 
-          if (current != _lastClipboard && current.isNotEmpty) {
-            _lastClipboard = current;
-            // Send to all connected clients
-            for (var client in _clients) {
-              try {
-                client.sink.add(current);
-              } catch (e) {
-                print('Error sending to client: $e');
-              }
+        if (current != _lastClipboard && current.isNotEmpty) {
+          _lastClipboard = current;
+
+          for (var client in _clients) {
+            try {
+              client.sink.add(current);
+            } catch (e) {
+              debugPrint('Error sending to client: $e');
             }
-            print('📋 Sent to ${_clients.length} client(s): $current');
           }
-        },
-      );
+          debugPrint('📋 Sent to ${_clients.length} client(s): $current');
+        }
+      });
 
       var handler = webSocketHandler((WebSocketChannel webSocket) {
         setState(() {
@@ -212,7 +208,7 @@ class _ServerScreenState extends State<ServerScreen> {
 
         webSocket.stream.listen(
           (event) async {
-            print('📱 Received from Android: $event');
+            debugPrint('📱 Received from Android: $event');
             await _writeClipboard(event.toString());
             _lastClipboard = event.toString();
           },
@@ -221,7 +217,7 @@ class _ServerScreenState extends State<ServerScreen> {
             setState(() {
               connectedClients--;
             });
-            print('Client disconnected');
+            debugPrint('Client disconnected');
           },
         );
       });
@@ -233,7 +229,7 @@ class _ServerScreenState extends State<ServerScreen> {
         statusMessage = 'Running on $localIp:$port';
       });
 
-      print('🚀 Server started on $localIp:$port');
+      debugPrint('🚀 Server started on $localIp:$port');
     } catch (e) {
       setState(() {
         statusMessage = 'Error: $e';
@@ -242,7 +238,6 @@ class _ServerScreenState extends State<ServerScreen> {
   }
 
   Future<void> stopServer() async {
-    // Cancel the single clipboard polling timer
     _clipboardPollTimer?.cancel();
     _clipboardPollTimer = null;
     _lastClipboard = '';
@@ -262,7 +257,7 @@ class _ServerScreenState extends State<ServerScreen> {
       connectedClients = 0;
     });
 
-    print('🛑 Server stopped');
+    debugPrint('Server stopped');
   }
 
   @override
