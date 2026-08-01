@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/material.dart';
+
 import 'package:bonsoir/bonsoir.dart';
+import 'package:flutter/material.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_web_socket/shelf_web_socket.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -42,6 +44,8 @@ class _ServerScreenState extends State<ServerScreen> {
   HttpServer? _server;
   final List<WebSocketChannel> _clients = [];
   BonsoirBroadcast? _broadcast;
+  Timer? _clipboardPollTimer;
+  String _lastClipboard = '';
 
   @override
   void initState() {
@@ -56,17 +60,17 @@ class _ServerScreenState extends State<ServerScreen> {
         final result = await Process.run('pbpaste', []);
         return result.stdout.toString().trim();
       } else if (Platform.isWindows) {
-        final result = await Process.run(
-          'powershell',
-          ['-command', 'Get-Clipboard'],
-        );
+        final result = await Process.run('powershell', [
+          '-command',
+          'Get-Clipboard',
+        ]);
         return result.stdout.toString().trim();
       } else if (Platform.isLinux) {
-       
-        final result = await Process.run(
-          'xclip',
-          ['-selection', 'clipboard', '-o'],
-        );
+        final result = await Process.run('xclip', [
+          '-selection',
+          'clipboard',
+          '-o',
+        ]);
         return result.stdout.toString().trim();
       }
     } catch (e) {
@@ -78,14 +82,30 @@ class _ServerScreenState extends State<ServerScreen> {
   Future<void> _writeClipboard(String text) async {
     try {
       if (Platform.isMacOS) {
-        await Process.run('bash', ['-c', 'echo "$text" | pbcopy']);
+        // Use stdin to avoid shell injection
+        final process = await Process.start('pbcopy', []);
+        process.stdin.add(utf8.encode(text));
+        await process.stdin.close();
+        await process.exitCode;
       } else if (Platform.isWindows) {
-        await Process.run(
-          'powershell',
-          ['-command', 'Set-Clipboard', '-Value', r'$text'],
-        );
+        // Fix: Use stdin to pass text safely
+        final process = await Process.start('powershell', [
+          '-NoProfile',
+          '-Command',
+          '[Console]::InputEncoding=[Text.UTF8Encoding]::new(); \$input | Set-Clipboard',
+        ]);
+        process.stdin.add(utf8.encode(text));
+        await process.stdin.close();
+        await process.exitCode;
       } else if (Platform.isLinux) {
-        await Process.run('bash', ['-c', 'echo "$text" | xclip -selection clipboard']);
+        // Use stdin to avoid shell injection
+        final process = await Process.start('xclip', [
+          '-selection',
+          'clipboard',
+        ]);
+        process.stdin.add(utf8.encode(text));
+        await process.stdin.close();
+        await process.exitCode;
       }
     } catch (e) {
       print('Error writing clipboard: $e');
@@ -115,18 +135,39 @@ class _ServerScreenState extends State<ServerScreen> {
         type: InternetAddressType.IPv4,
       );
 
+      String? candidateIp;
+      int priority = 0;
+
       for (var interface in interfaces) {
         for (var addr in interface.addresses) {
-          if (!addr.isLoopback && addr.address.startsWith('192.168')) {
-            setState(() {
-              localIp = addr.address;
-            });
-            return;
+          if (addr.isLoopback) continue;
+
+          final ip = addr.address;
+          int currentPriority = 0;
+
+          // Priority order: 192.168.* > 10.* > 172.16-31.* > other private
+          if (ip.startsWith('192.168.')) {
+            currentPriority = 4;
+          } else if (ip.startsWith('10.')) {
+            currentPriority = 3;
+          } else if (ip.startsWith('172.')) {
+            final second = int.tryParse(ip.split('.')[1]) ?? 0;
+            if (second >= 16 && second <= 31) {
+              currentPriority = 2;
+            }
+          } else {
+            currentPriority = 1; // Any other non-loopback
+          }
+
+          if (currentPriority > priority) {
+            priority = currentPriority;
+            candidateIp = ip;
           }
         }
       }
+
       setState(() {
-        localIp = 'Not found';
+        localIp = candidateIp ?? 'Not found';
       });
     } catch (e) {
       setState(() {
@@ -141,35 +182,41 @@ class _ServerScreenState extends State<ServerScreen> {
       final ip = InternetAddress.anyIPv4;
       const port = 8080;
 
+      // Start single clipboard polling timer for all clients
+      _clipboardPollTimer = Timer.periodic(
+        const Duration(milliseconds: 100),
+        (timer) async {
+          String current = await _readClipboard();
+
+          if (current != _lastClipboard && current.isNotEmpty) {
+            _lastClipboard = current;
+            // Send to all connected clients
+            for (var client in _clients) {
+              try {
+                client.sink.add(current);
+              } catch (e) {
+                print('Error sending to client: $e');
+              }
+            }
+            print('📋 Sent to ${_clients.length} client(s): $current');
+          }
+        },
+      );
+
       var handler = webSocketHandler((WebSocketChannel webSocket) {
         setState(() {
           connectedClients++;
         });
 
         _clients.add(webSocket);
-        String lastClipboard = '';
-        Timer? pollingTimer;
-
-        pollingTimer = Timer.periodic(const Duration(milliseconds: 100), (
-          timer,
-        ) async {
-          String current = await _readClipboard();
-
-          if (current != lastClipboard && current.isNotEmpty) {
-            lastClipboard = current;
-            webSocket.sink.add(current);
-            print('📋 Sent to Android: $current');
-          }
-        });
 
         webSocket.stream.listen(
           (event) async {
             print('📱 Received from Android: $event');
             await _writeClipboard(event.toString());
-            lastClipboard = event.toString();
+            _lastClipboard = event.toString();
           },
           onDone: () {
-            pollingTimer?.cancel();
             _clients.remove(webSocket);
             setState(() {
               connectedClients--;
@@ -195,6 +242,11 @@ class _ServerScreenState extends State<ServerScreen> {
   }
 
   Future<void> stopServer() async {
+    // Cancel the single clipboard polling timer
+    _clipboardPollTimer?.cancel();
+    _clipboardPollTimer = null;
+    _lastClipboard = '';
+
     await _server?.close(force: true);
 
     for (var client in _clients) {
@@ -210,14 +262,14 @@ class _ServerScreenState extends State<ServerScreen> {
       connectedClients = 0;
     });
 
-    print('Server stopped');
+    print('🛑 Server stopped');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Clipboard Sync'),
+        title: const Text('Clipboard Sync Desktop App'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Center(
@@ -268,6 +320,11 @@ class _ServerScreenState extends State<ServerScreen> {
                 child: ElevatedButton(
                   onPressed: isServerRunning ? stopServer : startServer,
                   style: ElevatedButton.styleFrom(
+                    shape: BeveledRectangleBorder(
+                      borderRadius: BorderRadiusGeometry.all(
+                        Radius.circular(12),
+                      ),
+                    ),
                     backgroundColor: isServerRunning
                         ? Colors.red
                         : Colors.green,
@@ -283,66 +340,8 @@ class _ServerScreenState extends State<ServerScreen> {
                 const SizedBox(height: 24),
                 const Text(
                   'Open the Android app to connect automatically via mDNS',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: Colors.grey, fontSize: 14),
                   textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                Container(
-                  constraints: const BoxConstraints(maxWidth: 500),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.blue, width: 2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.science, color: Colors.blue, size: 20),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Demo Test Area',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.blue,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Type here and copy to test clipboard sync:',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        maxLines: 3,
-                        decoration: InputDecoration(
-                          hintText: 'Type text here, then select and copy (Cmd+C)',
-                          border: const OutlineInputBorder(),
-                          filled: true,
-                          fillColor: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Or paste here to see synced text from Android:',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        maxLines: 3,
-                        decoration: InputDecoration(
-                          hintText: 'Press Cmd+V to paste text from Android',
-                          border: const OutlineInputBorder(),
-                          filled: true,
-                          fillColor: Colors.green[50],
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ],

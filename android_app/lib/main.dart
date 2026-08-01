@@ -47,55 +47,46 @@ class _HomeScreenState extends State<HomeScreen> {
 
     await _bonsoirDiscovery?.initialize();
 
-    
-    _bonsoirDiscovery?.eventStream!.listen((event) async{
-   
+    _bonsoirDiscovery?.eventStream!.listen((event) async {
+      switch (event) {
+        case BonsoirDiscoveryServiceFoundEvent():
+          print('Service found but not yet resolved: ${event.service.name}');
+          event.service?.resolve(_bonsoirDiscovery!.serviceResolver);
+          break;
 
-         switch (event) {
+        case BonsoirDiscoveryServiceResolvedEvent():
+          print('Service resolved successfully: ${event.service?.name}');
+          print('IP Addresses: ${event.service?.hostAddresses}');
+          print('Port: ${event.service?.port}');
 
-      case BonsoirDiscoveryServiceFoundEvent():
-        print('Service found but not yet resolved: ${event.service.name}');
-        event.service?.resolve(_bonsoirDiscovery!.serviceResolver);
-        break;
-
-      case BonsoirDiscoveryServiceResolvedEvent():
-  
-        print('Service resolved successfully: ${event.service?.name}');
-        print('IP Addresses: ${event.service?.hostAddresses}');
-        print('Port: ${event.service?.port}');
-
-    
-        if (!isConnecting && !isServiceRunning) {
-          if(event.service?.hostAddress != null && event.service?.port != null){
-            isConnecting = true;
-            await startService(event.service.hostAddress!, event.service.port);
-            isConnecting = false;
+          if (!isConnecting && !isServiceRunning) {
+            if (event.service?.hostAddress != null &&
+                event.service?.port != null) {
+              isConnecting = true;
+              await startService(
+                event.service.hostAddress!,
+                event.service.port,
+              );
+              isConnecting = false;
+            }
           }
-        }
-        break;
+          break;
 
-      case BonsoirDiscoveryServiceLostEvent():
-        print('Service lost from the network: ${event.service?.name}');
-        break;
+        case BonsoirDiscoveryServiceLostEvent():
+          print('Service lost from the network: ${event.service?.name}');
+          break;
 
-      default:
-        print('Other event occurred: $event');
-        break;
-    }
-  
+        default:
+          print('Other event occurred: $event');
+          break;
+      }
     });
 
     await _bonsoirDiscovery?.start();
-
-
   }
-
-  
 
   Future<void> startService(String ip, int port) async {
     try {
-    
-
       final String result = await platform.invokeMethod('startService', {
         'serverIp': ip,
         'serverPort': port,
@@ -126,7 +117,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> stopService() async {
     try {
-
       await _bonsoirDiscovery?.stop();
       _bonsoirDiscovery = null;
       final String result = await platform.invokeMethod('stopService');
@@ -154,7 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Clipboard Sync'),
+        title: const Text('Clipboard Sync Android App'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Padding(
@@ -166,21 +156,32 @@ class _HomeScreenState extends State<HomeScreen> {
               'Mac Server Settings',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
 
             const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: (_bonsoirDiscovery != null && !isServiceRunning)
-                ? null
-                : (isServiceRunning ? stopService : startDiscovering),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: isServiceRunning ? Colors.red : Colors.green,
-                foregroundColor: Colors.white,
-              ),
-              child: Text(
-                isServiceRunning ? 'Stop Sync' : 'Start Sync',
-                style: const TextStyle(fontSize: 18),
+            Center(
+              child: SizedBox(
+                width: 200,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: (_bonsoirDiscovery != null && !isServiceRunning)
+                      ? null
+                      : (isServiceRunning ? stopService : startDiscovering),
+                  style: ElevatedButton.styleFrom(
+                    shape: BeveledRectangleBorder(
+                      borderRadius: BorderRadiusGeometry.all(
+                        Radius.circular(12),
+                      ),
+                    ),
+                    backgroundColor: isServiceRunning
+                        ? Colors.red
+                        : Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Text(
+                    isServiceRunning ? 'Stop Sync' : 'Start Sync',
+                    style: const TextStyle(fontSize: 18),
+                  ),
+                ),
               ),
             ),
 
@@ -201,10 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(width: 12),
                   const Text(
                     'Finding Mac server...',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                 ],
               ),
@@ -221,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   const Text(
                     'Status',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -233,79 +231,26 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: isServiceRunning ? Colors.green : Colors.grey,
                       ),
                       const SizedBox(width: 8),
-                      Expanded(child: Text(statusMessage)),
+                      Expanded(
+                        child: Text(
+                          statusMessage,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'How to use:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text('1. Make sure Mac server is running'),
-            const Text('2. Tap "Start Sync" - Mac will be found automatically'),
-            const Text('3. Copy text on either device - it syncs instantly!'),
-
             if (isServiceRunning) ...[
               const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.blue, width: 2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: const [
-                        Icon(Icons.science, color: Colors.blue, size: 20),
-                        SizedBox(width: 8),
-                        Text(
-                          'Demo Test Area',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Type here and copy to test clipboard sync:',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        hintText: 'Type text here, select and copy',
-                        border: const OutlineInputBorder(),
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Or paste here to see synced text from desktop:',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        hintText: 'Long press and paste text from desktop',
-                        border: const OutlineInputBorder(),
-                        filled: true,
-                        fillColor: Colors.green[50],
-                      ),
-                    ),
-                  ],
-                ),
+              const Text(
+                'Connected! Copy text on either device to sync',
+                style: TextStyle(color: Color.fromARGB(255, 121, 120, 120), fontSize: 14),
+                textAlign: TextAlign.center,
               ),
             ],
           ],
@@ -314,6 +259,3 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-
-
-

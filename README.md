@@ -2,6 +2,10 @@
 
 A cross-platform clipboard synchronization system that enables seamless copy-paste between desktop computers and Android devices over local Wi-Fi network.
 
+## Demo
+
+Watch the app in action: [Demo Video](https://streamable.com/ebb7o4)
+
 ## Overview
 
 This project implements a real-time clipboard synchronization solution that works across macOS, Windows, Linux, and Android. It uses mDNS/Bonjour for automatic device discovery and WebSocket for bidirectional communication, ensuring clipboard content is synced instantly between devices without any manual configuration.
