@@ -64,11 +64,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
           if (event.service != null) {
             setState(() {
-              serviceslist.add({
-                'name': event.service.name,
-                'ip': event.service.hostAddress,
-                'port': event.service.port,
-              });
+           
+              final existingIndex = serviceslist.indexWhere(
+                (server) =>
+                    server['name'] == event.service.name &&
+                    server['ip'] == event.service.hostAddress,
+              );
+              if (existingIndex == -1) {
+                serviceslist.add({
+                  'name': event.service.name,
+                  'ip': event.service.hostAddress,
+                  'port': event.service.port,
+                });
+              }
             });
           }
 
