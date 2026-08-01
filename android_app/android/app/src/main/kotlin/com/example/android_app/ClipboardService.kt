@@ -68,7 +68,7 @@ class ClipboardService : Service() {
             clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         }
 
-        // Connect to Mac server
+        // Connect to desktop server
         if (webSocket == null) {
             connectToServer()
         }
@@ -95,7 +95,7 @@ class ClipboardService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Clipboard Sync Active")
-            .setContentText("Connected to Mac at $serverIp:$serverPort")
+            .setContentText("Connected to desktop at $serverIp:$serverPort")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
@@ -112,13 +112,13 @@ class ClipboardService : Service() {
 
         val listener = object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                Log.i(TAG, "Connected to Mac at $url")
+                Log.i(TAG, "Connected to desktop at $url")
                 this@ClipboardService.webSocket = webSocket
                 reconnectDelay = 1000L // Reset delay on successful connection
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                Log.i(TAG, "Received from Mac: $text")
+                Log.i(TAG, "Received from desktop: $text")
                 handler.post { writeToClipboard(text) }
             }
 

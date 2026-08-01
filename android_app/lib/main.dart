@@ -43,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> startDiscovering() async {
     setState(() {
       serviceslist.clear();
-      statusMessage = 'Looking for Mac...';
+      statusMessage = 'Looking for desktop...';
     });
 
     _bonsoirDiscovery = BonsoirDiscovery(type: '_clipboardsync._tcp');
@@ -169,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'Mac Server Settings',
+              'Desktop Server Settings',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
 
@@ -216,7 +216,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: 12),
                   const Text(
-                    'Finding Mac server...',
+                    'Finding desktop server...',
                     style: TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                 ],

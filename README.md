@@ -163,20 +163,21 @@ flutter run
 ## Platform-Specific Implementation
 
 **macOS Clipboard:**
-- Read: `pbpaste` command
-- Write: `echo "text" | pbcopy` command
+- Read: `Process.run('pbpaste', [])`
+- Write: `Process.start('pbcopy', [])` with stdin piping (prevents shell injection)
 
 **Windows Clipboard:**
-- Read: `powershell -command Get-Clipboard`
-- Write: `powershell -command Set-Clipboard -Value text`
+- Read: `Process.run('powershell', ['-command', 'Get-Clipboard'])`
+- Write: `Process.start('powershell', ['-NoProfile', '-Command', '$input | Set-Clipboard'])` with UTF-8 stdin
 
 **Linux Clipboard:**
-- Read: `xclip -selection clipboard -o`
-- Write: `echo "text" | xclip -selection clipboard`
+- Read: `Process.run('xclip', ['-selection', 'clipboard', '-o'])`
+- Write: `Process.start('xclip', ['-selection', 'clipboard'])` with stdin piping
 
 **Android Clipboard:**
 - Native ClipboardManager API via Kotlin
 - Method Channel bridge to Flutter
+- Direct API access (no shell commands needed)
 
 ## Dependencies
 
