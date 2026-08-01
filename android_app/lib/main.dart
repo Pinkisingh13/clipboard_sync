@@ -64,7 +64,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
           if (event.service != null) {
             setState(() {
-           
               final existingIndex = serviceslist.indexWhere(
                 (server) =>
                     server['name'] == event.service.name &&
@@ -84,6 +83,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
         case BonsoirDiscoveryServiceLostEvent():
           log('Service lost from the network: ${event.service?.name}');
+          setState(() {
+            serviceslist.removeWhere(
+              (server) => server['name'] == event.service?.name,
+            );
+          });
           break;
 
         default:
@@ -104,6 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       setState(() {
         isServiceRunning = true;
+        isConnecting = false;
         statusMessage = result;
       });
 
@@ -114,6 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } on PlatformException catch (e) {
       setState(() {
+        isConnecting = false;
         statusMessage = 'Error: ${e.message}';
       });
 
@@ -233,6 +239,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     subtitle: Text(server['ip']),
                     trailing: Icon(Icons.arrow_forward_ios),
                     onTap: () {
+                      if (isConnecting || isServiceRunning) return;
+                      setState(() {
+                        isConnecting = true;
+                      });
                       startService(server['ip'], server['port']);
                     },
                   ),

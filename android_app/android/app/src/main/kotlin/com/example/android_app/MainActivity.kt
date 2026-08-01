@@ -5,6 +5,8 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import android.content.Intent
 import android.os.Build
+import android.app.ActivityManager
+import android.content.Context
 
 class MainActivity : FlutterActivity() {
 
@@ -47,7 +49,10 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun stopClipboardService() {
-        val intent = Intent(this, ClipboardService::class.java)
-        stopService(intent)
+        val intent = Intent(this, ClipboardService::class.java).apply {
+            action = "STOP"
+        }
+        startService(intent)   // Delivers STOP to onStartCommand
+        stopService(intent)    // Also ask system to tear it down
     }
 }

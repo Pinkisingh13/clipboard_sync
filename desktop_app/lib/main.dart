@@ -40,7 +40,7 @@ class _ServerScreenState extends State<ServerScreen> {
   bool isServerRunning = false;
   String statusMessage = 'Not started';
   String localIp = 'Finding...';
-  int connectedClients = 0;
+  int connectedDevices = 0;
   HttpServer? _server;
   final List<WebSocketChannel> _clients = [];
   BonsoirBroadcast? _broadcast;
@@ -81,13 +81,11 @@ class _ServerScreenState extends State<ServerScreen> {
   Future<void> _writeClipboard(String text) async {
     try {
       if (Platform.isMacOS) {
-    
         final process = await Process.start('pbcopy', []);
         process.stdin.add(utf8.encode(text));
         await process.stdin.close();
         await process.exitCode;
       } else if (Platform.isWindows) {
-      
         final process = await Process.start('powershell', [
           '-NoProfile',
           '-Command',
@@ -97,7 +95,6 @@ class _ServerScreenState extends State<ServerScreen> {
         await process.stdin.close();
         await process.exitCode;
       } else if (Platform.isLinux) {
-        // Use stdin to avoid shell injection
         final process = await Process.start('xclip', [
           '-selection',
           'clipboard',
@@ -200,11 +197,12 @@ class _ServerScreenState extends State<ServerScreen> {
       });
 
       var handler = webSocketHandler((WebSocketChannel webSocket) {
-        setState(() {
-          connectedClients++;
-        });
-
+        debugPrint('Client connected');
         _clients.add(webSocket);
+
+        setState(() {
+          connectedDevices = _clients.length;
+        });
 
         webSocket.stream.listen(
           (event) async {
@@ -213,11 +211,12 @@ class _ServerScreenState extends State<ServerScreen> {
             _lastClipboard = event.toString();
           },
           onDone: () {
-            _clients.remove(webSocket);
-            setState(() {
-              connectedClients--;
-            });
             debugPrint('Client disconnected');
+            _clients.remove(webSocket);
+
+            setState(() {
+              connectedDevices = _clients.length;
+            });
           },
         );
       });
@@ -242,22 +241,29 @@ class _ServerScreenState extends State<ServerScreen> {
     _clipboardPollTimer = null;
     _lastClipboard = '';
 
-    await _server?.close(force: true);
-
-    for (var client in _clients) {
-      await client.sink.close();
-    }
+    final clientsCopy = List<WebSocketChannel>.from(_clients);
     _clients.clear();
+
+    for (var client in clientsCopy) {
+      try {
+        await client.sink.close();
+      } catch (e) {
+        debugPrint('Error closing client: $e');
+      }
+    }
+
+    await _server?.close(force: true);
+    _server = null;
 
     await stopBonjoir();
 
     setState(() {
       isServerRunning = false;
       statusMessage = 'Stopped';
-      connectedClients = 0;
+      connectedDevices = 0;
     });
 
-    debugPrint('Server stopped');
+    debugPrint('Server stopped. All connections closed.');
   }
 
   @override
@@ -301,10 +307,7 @@ class _ServerScreenState extends State<ServerScreen> {
                     const SizedBox(height: 8),
                     _buildInfoRow('Port', '8080'),
                     const SizedBox(height: 8),
-                    _buildInfoRow(
-                      'Connected Devices',
-                      connectedClients.toString(),
-                    ),
+                    _buildInfoRow('Connected Devices', connectedDevices.toString()),
                   ],
                 ),
               ),
@@ -333,9 +336,10 @@ class _ServerScreenState extends State<ServerScreen> {
               ),
               if (isServerRunning) ...[
                 const SizedBox(height: 24),
-                const Text(
-                  'Open the Android app to connect automatically via mDNS',
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                Text(
+                  'On Android: Start Sync, then tap this computer under Found Servers.\n'
+                  'Look for: clipboard sync ${Platform.localHostname}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
               ],

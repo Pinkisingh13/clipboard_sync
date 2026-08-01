@@ -136,7 +136,7 @@ flutter run
 1. Ensure both devices are connected to the same Wi-Fi network
 2. Launch the desktop application and click "Start Server"
 3. Launch the Android application and click "Start Sync"
-4. Android will automatically discover and connect to the desktop
+4. Tap your desktop's hostname under "Found Servers" to connect
 5. Copy text on either device - it will instantly appear on the other device's clipboard
 
 ## Technical Details

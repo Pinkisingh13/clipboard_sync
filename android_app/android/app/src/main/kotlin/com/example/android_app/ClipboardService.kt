@@ -38,11 +38,27 @@ class ClipboardService : Service() {
     private var reconnectDelay = 1000L
     private val maxDelay = 32000L
     private val handler = Handler(Looper.getMainLooper())
+    private var shouldReconnect = true 
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Handle explicit STOP action first
+        if (intent?.action == "STOP") {
+            shouldReconnect = false
+            handler.removeCallbacksAndMessages(null)
+            webSocket?.cancel()  // Stronger than close()
+            webSocket = null
+            stopForeground(STOP_FOREGROUND_REMOVE)  // Remove notification
+            stopSelf()  // Kill service immediately
+            Log.i(TAG, "Service stopped via STOP action")
+            return START_NOT_STICKY
+        }
+
         // Get server IP and port from Intent
         serverIp = intent?.getStringExtra("SERVER_IP") ?: "192.168.1.5"
         serverPort = intent?.getIntExtra("SERVER_PORT", 8080) ?: 8080
+
+        // Reset reconnect flag when service starts
+        shouldReconnect = true
 
         // Start foreground with notification
         startForeground(NOTIFICATION_ID, createNotification())
@@ -62,7 +78,7 @@ class ClipboardService : Service() {
             startClipboardListener()
         }
 
-        return START_STICKY
+        return START_NOT_STICKY  // Changed from START_STICKY
     }
 
     private fun createNotification(): Notification {
@@ -87,6 +103,10 @@ class ClipboardService : Service() {
     }
 
     private fun connectToServer() {
+        // Close existing WebSocket before creating new one
+        webSocket?.close(1000, "Reconnecting")
+        webSocket = null
+
         val url = "ws://$serverIp:$serverPort"
         val request = Request.Builder().url(url).build()
 
@@ -105,13 +125,17 @@ class ClipboardService : Service() {
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 Log.w(TAG, "Connection closed: $reason")
                 this@ClipboardService.webSocket = null
-                reconnect()
+                if (shouldReconnect) {  // Only reconnect if flag is true
+                    reconnect()
+                }
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Log.e(TAG, "Connection failed: ${t.message}")
                 this@ClipboardService.webSocket = null
-                reconnect()
+                if (shouldReconnect) {  // Only reconnect if flag is true
+                    reconnect()
+                }
             }
         }
 
@@ -158,16 +182,22 @@ class ClipboardService : Service() {
     override fun onDestroy() {
         super.onDestroy()
 
-        // Clean up
+        // Stop reconnection attempts
+        shouldReconnect = false
+
+        // Cancel any pending reconnect callbacks
+        handler.removeCallbacksAndMessages(null)
+
+        // Clean up clipboard listener
         clipboardListener?.let {
             clipboardManager?.removePrimaryClipChangedListener(it)
         }
 
+        // Close WebSocket
         webSocket?.close(1000, "Service stopped")
         webSocket = null
-        handler.removeCallbacksAndMessages(null)
 
-        Log.i(TAG, "Service stopped")
+        Log.i(TAG, "Service stopped and reconnection disabled")
     }
 
     override fun onBind(intent: Intent?): IBinder? {
