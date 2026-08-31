@@ -1,6 +1,28 @@
 # Clipboard Sync
 
-A cross-platform clipboard synchronization system that enables seamless copy-paste between desktop computers and Android devices over local Wi-Fi network.
+LAN copy-paste between a **Mac (or Windows/Linux) desktop app** and an **Android app**. You need **both**. Text only. Same Wi-Fi. Nothing goes to the cloud.
+
+## Download
+
+Use the website: **[clipboard-sync-pinki.netlify.app](https://clipboard-sync-pinki.netlify.app)**
+
+Mac `.dmg` / `.app` zip and the Android app. You need **both**. Same Wi‑Fi. Text only.
+
+Site files live in `website/`. Pack binaries, then deploy:
+
+```bash
+chmod +x scripts/pack-downloads.sh
+./scripts/pack-downloads.sh
+npx netlify deploy --prod --dir=website
+```
+
+**This is not a phone-only app.** The Android download cannot sync by itself. Start the Mac app, then connect the phone.
+
+**Mac:** if Gatekeeper blocks, right-click → **Open**. Keep the desktop app running.
+
+**Android:** allow install from the browser when asked. You will see a **Clipboard Sync Active** notification while connected.
+
+Sideloaded APKs do not auto-update. Grab a newer Release when we publish one. Only download from this GitHub repo.
 
 ## Demo
 

@@ -4,9 +4,39 @@ import 'dart:io';
 
 import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_web_socket/shelf_web_socket.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+
+/// Debug timing prefix. Stripped on receive so it never becomes clipboard text.
+String _wrapLatencyPayload(String text) {
+  return 'CS1|${DateTime.now().millisecondsSinceEpoch}|$text';
+}
+
+({int? sentAt, String text}) _unwrapLatencyPayload(String raw) {
+  if (!raw.startsWith('CS1|')) {
+    return (sentAt: null, text: raw);
+  }
+  final secondBar = raw.indexOf('|', 4);
+  if (secondBar < 0) {
+    return (sentAt: null, text: raw);
+  }
+  final sentAt = int.tryParse(raw.substring(4, secondBar));
+  return (sentAt: sentAt, text: raw.substring(secondBar + 1));
+}
+
+String _stripAllLatencyPrefixes(String raw) {
+  var text = raw;
+  var guard = 0;
+  while (text.startsWith('CS1|') && guard < 64) {
+    final next = _unwrapLatencyPayload(text).text;
+    if (next == text) break;
+    text = next;
+    guard++;
+  }
+  return text;
+}
 
 void main() {
   runApp(const MyApp());
@@ -46,6 +76,9 @@ class _ServerScreenState extends State<ServerScreen> {
   BonsoirBroadcast? _broadcast;
   Timer? _clipboardPollTimer;
   String _lastClipboard = '';
+  int _lastMacChangeToken = -1;
+  bool _pollInFlight = false;
+  static const _macClipboard = MethodChannel('clipboard');
 
   @override
   void initState() {
@@ -53,11 +86,16 @@ class _ServerScreenState extends State<ServerScreen> {
     _getLocalIp();
   }
 
+  Future<int> _macChangeToken() async {
+    final token = await _macClipboard.invokeMethod<int>('changeToken');
+    return token ?? 0;
+  }
+
   Future<String> _readClipboard() async {
     try {
       if (Platform.isMacOS) {
-        final result = await Process.run('pbpaste', []);
-        return result.stdout.toString().trim();
+        final text = await _macClipboard.invokeMethod<String>('readText');
+        return text?.trim() ?? '';
       } else if (Platform.isWindows) {
         final result = await Process.run('powershell', [
           '-command',
@@ -81,10 +119,7 @@ class _ServerScreenState extends State<ServerScreen> {
   Future<void> _writeClipboard(String text) async {
     try {
       if (Platform.isMacOS) {
-        final process = await Process.start('pbcopy', []);
-        process.stdin.add(utf8.encode(text));
-        await process.stdin.close();
-        await process.exitCode;
+        await _macClipboard.invokeMethod('writeText', text);
       } else if (Platform.isWindows) {
         final process = await Process.start('powershell', [
           '-NoProfile',
@@ -180,19 +215,42 @@ class _ServerScreenState extends State<ServerScreen> {
       _clipboardPollTimer = Timer.periodic(const Duration(milliseconds: 100), (
         timer,
       ) async {
-        String current = await _readClipboard();
+        if (_pollInFlight) return;
+        _pollInFlight = true;
+        try {
+          final detectWatch = Stopwatch()..start();
 
-        if (current != _lastClipboard && current.isNotEmpty) {
-          _lastClipboard = current;
-
-          for (var client in _clients) {
-            try {
-              client.sink.add(current);
-            } catch (e) {
-              debugPrint('Error sending to client: $e');
-            }
+          if (Platform.isMacOS) {
+            final token = await _macChangeToken();
+            if (token == _lastMacChangeToken) return;
+            _lastMacChangeToken = token;
           }
-          debugPrint('📋 Sent to ${_clients.length} client(s): $current');
+
+          String current = _stripAllLatencyPrefixes(await _readClipboard());
+
+          if (current.startsWith('CS1|')) {
+            return;
+          }
+
+          if (current != _lastClipboard && current.isNotEmpty) {
+            _lastClipboard = current;
+            final payload = _wrapLatencyPayload(current);
+
+            for (var client in _clients) {
+              try {
+                client.sink.add(payload);
+              } catch (e) {
+                debugPrint('Error sending to client: $e');
+              }
+            }
+            detectWatch.stop();
+            debugPrint(
+              'LATENCY Mac→Android local_detect+read+send=${detectWatch.elapsedMilliseconds}ms '
+              'clients=${_clients.length} text="$current"',
+            );
+          }
+        } finally {
+          _pollInFlight = false;
         }
       });
 
@@ -206,9 +264,24 @@ class _ServerScreenState extends State<ServerScreen> {
 
         webSocket.stream.listen(
           (event) async {
-            debugPrint('Received from Android: $event');
-            await _writeClipboard(event.toString());
-            _lastClipboard = event.toString();
+            final writeWatch = Stopwatch()..start();
+            final parsed = _unwrapLatencyPayload(event.toString());
+            debugPrint('Received from Android: ${parsed.text}');
+            final plain = _stripAllLatencyPrefixes(parsed.text);
+            await _writeClipboard(plain);
+            _lastClipboard = plain;
+            if (Platform.isMacOS) {
+              _lastMacChangeToken = await _macChangeToken();
+            }
+            writeWatch.stop();
+            final wireMs = parsed.sentAt == null
+                ? null
+                : DateTime.now().millisecondsSinceEpoch - parsed.sentAt!;
+            debugPrint(
+              'LATENCY Android→Mac write=${writeWatch.elapsedMilliseconds}ms '
+              'wire_approx=${wireMs ?? "n/a"}ms '
+              '(wire_approx uses device clocks; may be off) text="${parsed.text}"',
+            );
           },
           onDone: () {
             debugPrint('Client disconnected');
@@ -240,6 +313,7 @@ class _ServerScreenState extends State<ServerScreen> {
     _clipboardPollTimer?.cancel();
     _clipboardPollTimer = null;
     _lastClipboard = '';
+    _lastMacChangeToken = -1;
 
     final clientsCopy = List<WebSocketChannel>.from(_clients);
     _clients.clear();

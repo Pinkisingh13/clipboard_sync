@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clipboard Sync — Mac and Android, same Wi‑Fi</title>
+    <meta
+      name="description"
+      content="Copy text on your Mac, paste on your phone. Both apps required. Text only. Stays on your local network."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="hero">
+        <p class="eyebrow">Local Wi‑Fi · Text clipboard</p>
+        <h1>Clipboard Sync</h1>
+        <p class="lede">
+          Copy on the Mac, paste on Android — and the other way. You need
+          <strong>both apps</strong>. Nothing is uploaded to the cloud.
+        </p>
+      </header>
+
+      <section class="notice" aria-label="Requirements">
+        <ul>
+          <li>Mac app <em>and</em> Android app — one side is not enough</li>
+          <li>Same Wi‑Fi on both devices</li>
+          <li>Plain text only (no images or files yet)</li>
+          <li>Keep the Mac app open while you sync</li>
+        </ul>
+      </section>
+
+      <section class="downloads" id="download">
+        <h2>Download</h2>
+        <p class="hint">Install both, then start the Mac server and connect the phone.</p>
+
+        <div class="cards">
+          <article class="card" data-os="mac">
+            <h3>Mac</h3>
+            <p>Desktop server. Double‑click the app inside the disk image.</p>
+            <a class="btn primary" href="downloads/Clipboard-Sync.dmg">Download .dmg</a>
+            <a class="btn ghost" href="downloads/Clipboard-Sync-macOS.zip">Download .app (zip)</a>
+            <p class="fine">
+              Unsigned build. If macOS blocks it: right‑click the app → Open → Open.
+            </p>
+          </article>
+
+          <article class="card" data-os="android">
+            <h3>Android</h3>
+            <p>Phone client. Install, then tap your Mac in the list.</p>
+            <a class="btn primary" href="downloads/Clipboard-Sync.apk">Download Android app</a>
+            <p class="fine">
+              Android will ask to allow installs from the browser. That is normal for a
+              direct download (not Play Store).
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="steps">
+        <h2>How to use</h2>
+        <ol>
+          <li>Install the Mac app and the Android app.</li>
+          <li>On the Mac, start the server.</li>
+          <li>On the phone, wait until your Mac appears, then tap it.</li>
+          <li>Copy text on either device. It shows up on the other clipboard.</li>
+        </ol>
+      </section>
+
+      <footer>
+        <p>
+          Source and issues:
+          <a href="https://github.com/Pinkisingh13/clipboard_sync">GitHub</a>
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,21 @@
+# Static download site. Binaries are copied into website/downloads/ before deploy
+# (see scripts/pack-downloads.sh). Do not rely on Netlify to compile Flutter.
+
+# Static site only. Flutter binaries are packed locally (scripts/pack-downloads.sh)
+# then uploaded with: npx netlify deploy --prod --dir=website
+# Do not expect Netlify CI to compile the Mac/Android apps.
+
+[build]
+  publish = "website"
+
+[dev]
+  framework = "#static"
+  command = "python3 -m http.server 3999 --directory website"
+  targetPort = 3999
+  port = 8888
+
+[[headers]]
+  for = "/downloads/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Content-Disposition = "attachment"

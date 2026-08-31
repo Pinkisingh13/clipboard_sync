@@ -1,0 +1,2 @@
+Download binaries are produced by scripts/pack-downloads.sh and must not be committed.
+This folder is filled before `npx netlify deploy --prod --dir=website`.

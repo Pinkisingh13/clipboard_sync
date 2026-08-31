@@ -1,0 +1,161 @@
+:root {
+  --ink: #14110f;
+  --paper: #f4efe6;
+  --rule: #cfc6b8;
+  --accent: #c45c26;
+  --accent-ink: #fffaf4;
+  --muted: #5c564e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.page {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+.eyebrow {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+}
+
+h1 {
+  font-size: clamp(2.2rem, 6vw, 3.4rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 0 0 0.75rem;
+  line-height: 1.1;
+}
+
+h2 {
+  font-size: 1.35rem;
+  margin: 0 0 0.75rem;
+}
+
+.lede {
+  font-size: 1.15rem;
+  margin: 0;
+  max-width: 36rem;
+}
+
+.notice {
+  margin: 2rem 0;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--rule);
+  background: #fffdf8;
+}
+
+.notice ul {
+  margin: 0;
+  padding-left: 1.15rem;
+}
+
+.notice li + li {
+  margin-top: 0.35rem;
+}
+
+.downloads {
+  margin-top: 2.5rem;
+}
+
+.hint {
+  color: var(--muted);
+  margin: 0 0 1.25rem;
+}
+
+.cards {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.card {
+  border: 1px solid var(--rule);
+  padding: 1.15rem 1.2rem 1.25rem;
+  background: #fffdf8;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.card p {
+  margin: 0;
+}
+
+.btn {
+  display: inline-block;
+  text-align: center;
+  text-decoration: none;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.92rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 2px;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.btn.ghost {
+  border: 1px solid var(--ink);
+  color: var(--ink);
+}
+
+.fine {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.steps {
+  margin-top: 2.75rem;
+}
+
+.steps ol {
+  padding-left: 1.2rem;
+}
+
+.steps li + li {
+  margin-top: 0.4rem;
+}
+
+footer {
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.95rem;
+}
+
+footer a {
+  color: var(--ink);
+}

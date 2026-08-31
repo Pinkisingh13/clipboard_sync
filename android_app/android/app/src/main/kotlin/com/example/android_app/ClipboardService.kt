@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import okhttp3.OkHttpClient
@@ -38,7 +39,37 @@ class ClipboardService : Service() {
     private var reconnectDelay = 1000L
     private val maxDelay = 32000L
     private val handler = Handler(Looper.getMainLooper())
-    private var shouldReconnect = true 
+    private var shouldReconnect = true
+
+    private data class LatencyPayload(val sentAt: Long?, val text: String)
+
+    private fun wrapLatencyPayload(text: String): String {
+        return "CS1|${System.currentTimeMillis()}|$text"
+    }
+
+    private fun unwrapLatencyPayload(raw: String): LatencyPayload {
+        if (!raw.startsWith("CS1|")) {
+            return LatencyPayload(null, raw)
+        }
+        val secondBar = raw.indexOf('|', 4)
+        if (secondBar < 0) {
+            return LatencyPayload(null, raw)
+        }
+        val sentAt = raw.substring(4, secondBar).toLongOrNull()
+        return LatencyPayload(sentAt, raw.substring(secondBar + 1))
+    }
+
+    private fun stripAllLatencyPrefixes(raw: String): String {
+        var text = raw
+        var guard = 0
+        while (text.startsWith("CS1|") && guard < 64) {
+            val next = unwrapLatencyPayload(text).text
+            if (next == text) break
+            text = next
+            guard++
+        }
+        return text
+    } 
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Handle explicit STOP action first
@@ -118,8 +149,20 @@ class ClipboardService : Service() {
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                Log.i(TAG, "Received from desktop: $text")
-                handler.post { writeToClipboard(text) }
+                handler.post {
+                    val writeStart = SystemClock.elapsedRealtime()
+                    val parsed = unwrapLatencyPayload(text)
+                    val plain = stripAllLatencyPrefixes(parsed.text)
+                    Log.i(TAG, "Received from desktop: $plain")
+                    writeToClipboard(plain)
+                    val writeMs = SystemClock.elapsedRealtime() - writeStart
+                    val wireMs = parsed.sentAt?.let { System.currentTimeMillis() - it }
+                    Log.i(
+                        TAG,
+                        "LATENCY Mac→Android write=${writeMs}ms wire_approx=${wireMs ?: "n/a"}ms " +
+                            "(wire_approx uses device clocks; may be off) text=\"$plain\""
+                    )
+                }
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
@@ -154,12 +197,21 @@ class ClipboardService : Service() {
         clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
             val clipData = clipboardManager?.primaryClip
             if (clipData != null && clipData.itemCount > 0) {
-                val text = clipData.getItemAt(0).text?.toString() ?: ""
+                val text = stripAllLatencyPrefixes(
+                    clipData.getItemAt(0).text?.toString() ?: ""
+                )
+
+                if (text.startsWith("CS1|")) {
+                    return@OnPrimaryClipChangedListener
+                }
 
                 if (text.isNotEmpty() && text != lastClipboardText) {
                     lastClipboardText = text
                     Log.i(TAG, "Clipboard changed: $text")
-                    webSocket?.send(text)
+                    val sendStart = SystemClock.elapsedRealtime()
+                    webSocket?.send(wrapLatencyPayload(text))
+                    val sendMs = SystemClock.elapsedRealtime() - sendStart
+                    Log.i(TAG, "LATENCY Android→Mac local_send=${sendMs}ms text=\"$text\"")
                 }
             }
         }
