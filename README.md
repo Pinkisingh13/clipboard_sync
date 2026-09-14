@@ -1,7 +1,6 @@
 # Clipboard Sync
 
 A cross-platform clipboard synchronization system that enables seamless copy-paste between desktop computers and Android devices over local Wi-Fi network.
-[buymeacoffee.com/pinkisingh](https://buymeacoffee.com/pinkisingh)
 
 ## Demo
 
@@ -219,6 +218,15 @@ flutter run
 - Clipboard history feature
 - Internet-based sync via relay server
 - iOS support
+
+## Support
+
+Flutter widgets and learning apps.
+
+Freelance: DM on X [@devpinkisingh](https://x.com/devpinkisingh)
+
+If a repo saved you time: [Buy me a coffee](https://buymeacoffee.com/pinkisingh)
+
 
 ## License
 
