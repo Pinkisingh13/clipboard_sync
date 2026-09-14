@@ -1,6 +1,7 @@
 # Clipboard Sync
 
 A cross-platform clipboard synchronization system that enables seamless copy-paste between desktop computers and Android devices over local Wi-Fi network.
+[buymeacoffee.com/pinkisingh](https://buymeacoffee.com/pinkisingh)
 
 ## Demo
 
