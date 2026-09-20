@@ -1,14 +1,64 @@
 # Clipboard Sync
 
-LAN copy-paste between a **Mac (or Windows/Linux) desktop app** and an **Android app**. You need **both**. Text only. Same Wi-Fi. Nothing goes to the cloud.
+Real-time LAN clipboard sync between a **Mac desktop app** and an **Android
+app**. Both devices must be on the same Wi-Fi network. Text only; nothing is
+sent to a cloud service.
 
 ## Download
 
-Use the website: **[clipboard-sync-pinki.netlify.app](https://clipboard-sync-pinki.netlify.app)**
+Use the download site: **clipboard-sync-pinki.netlify.app**
 
-Mac `.dmg` / `.app` zip and the Android app. You need **both**. Same Wi‑Fi. Text only.
+Install both the Mac and Android apps. Start the Mac server first, then start
+sync on Android and select the discovered Mac.
 
-Site files live in `website/`. Pack binaries, then deploy:
+If macOS Gatekeeper blocks the unsigned app, right-click it, choose **Open**,
+then confirm. Android shows a persistent **Clipboard Sync Active** notification
+while sync is running.
+
+## How it works
+
+1. The Mac app advertises itself with mDNS/Bonjour as `_clipboardsync._tcp`.
+2. Android discovers the Mac on the same Wi-Fi network.
+3. Android connects to the Mac over a persistent WebSocket on port `8080`.
+4. Clipboard changes are sent immediately in either direction.
+
+The Mac uses `NSPasteboard`; Android uses `ClipboardManager` inside a foreground
+service. The desktop polls its macOS clipboard change token every 100 ms, while
+Android receives clipboard-change callbacks from the operating system.
+
+## Project structure
+
+```text
+clipboard_sync/
+├── desktop_app/       # macOS Flutter server application
+├── android_app/       # Android Flutter UI and Kotlin foreground service
+├── website/           # Static Mac + Android download site
+├── scripts/           # Release packaging
+└── doc/               # Project notes and feature designs
+```
+
+## Run locally
+
+### Mac desktop app
+
+```bash
+cd desktop_app
+flutter pub get
+flutter run -d macos
+```
+
+### Android app
+
+```bash
+cd android_app
+flutter pub get
+flutter run
+```
+
+## Package releases
+
+Build the Mac `.app`/`.dmg` and Android APK, then copy them to
+`website/downloads/`:
 
 ```bash
 chmod +x scripts/pack-downloads.sh
@@ -16,231 +66,15 @@ chmod +x scripts/pack-downloads.sh
 npx netlify deploy --prod --dir=website
 ```
 
-**This is not a phone-only app.** The Android download cannot sync by itself. Start the Mac app, then connect the phone.
+## Current limitations
 
-**Mac:** if Gatekeeper blocks, right-click → **Open**. Keep the desktop app running.
+- macOS desktop and Android only
+- Text clipboard content only
+- Both devices must be on the same local Wi-Fi network
+- The Mac app must remain open
 
-**Android:** allow install from the browser when asked. You will see a **Clipboard Sync Active** notification while connected.
+## Security roadmap
 
-Sideloaded APKs do not auto-update. Grab a newer Release when we publish one. Only download from this GitHub repo.
-
-## Demo
-
-Watch the app in action: [Demo Video](https://streamable.com/ebb7o4)
-
-## Overview
-
-This project implements a real-time clipboard synchronization solution that works across macOS, Windows, Linux, and Android. It uses mDNS/Bonjour for automatic device discovery and WebSocket for bidirectional communication, ensuring clipboard content is synced instantly between devices without any manual configuration.
-
-## Features
-
-- Bidirectional clipboard synchronization (desktop ↔ Android)
-- Automatic device discovery using mDNS/Bonjour protocol
-- Cross-platform desktop support (macOS, Windows, Linux)
-- Real-time sync with sub-100ms latency on local networks
-- No manual IP address configuration required
-- Privacy-focused - all data stays on local network
-- Persistent connection with automatic reconnection
-
-## Architecture
-
-The system consists of two main components:
-
-**Desktop Application (Flutter)**
-- GUI application for starting/stopping the sync server
-- WebSocket server running on port 8080
-- mDNS service broadcaster for auto-discovery
-- Platform-specific clipboard monitoring (polling every 100ms)
-- Cross-platform clipboard access helpers
-
-**Android Application (Flutter + Kotlin)**
-- Flutter-based UI for user interactions
-- mDNS service discovery client
-- Native Kotlin Foreground Service for 24/7 operation
-- ClipboardManager for instant clipboard change detection
-- WebSocket client for server communication
-
-## Communication Flow
-
-1. Desktop broadcasts its presence via mDNS with service type "_clipboardsync._tcp"
-2. Android discovers the service and extracts IP address and port
-3. WebSocket connection is established between devices
-4. Clipboard changes are detected and transmitted in real-time
-5. Received content is written to the destination device's clipboard
-
-## Technology Stack
-
-**Desktop:**
-- Flutter for cross-platform GUI
-- Bonsoir package for mDNS broadcasting
-- shelf and shelf_web_socket for WebSocket server
-- Platform-specific clipboard commands (pbcopy/pbpaste, PowerShell, xclip)
-
-**Android:**
-- Flutter for UI layer
-- Bonsoir package for mDNS discovery
-- Native Kotlin for background service
-- ClipboardManager API for clipboard operations
-- OkHttp library for WebSocket client
-- Foreground Service for persistent operation
-
-**Protocol:**
-- WebSocket for bidirectional communication
-- mDNS/Bonjour for service discovery
-- TCP/IP over local Wi-Fi network
-
-## Project Structure
-
-```
-clipboard_sync/
-├── desktop_app/              # Cross-platform desktop application
-│   ├── lib/main.dart         # Application logic and UI
-│   ├── macos/                # macOS platform configuration
-│   ├── windows/              # Windows platform configuration
-│   ├── linux/                # Linux platform configuration
-│   └── pubspec.yaml          # Flutter dependencies
-│
-├── android_app/              # Android mobile application
-│   ├── lib/main.dart         # Flutter UI and discovery logic
-│   ├── android/              # Android native code
-│   └── pubspec.yaml          # Flutter dependencies
-│
-└── README.md                 # This file
-```
-
-## Installation & Setup
-
-### Desktop Application
-
-**Prerequisites:**
-- Flutter SDK installed
-- For macOS: CocoaPods installed
-- For Linux: xclip package installed
-
-**macOS:**
-```bash
-cd desktop_app
-cd macos && pod install && cd ..
-flutter pub get
-flutter run
-```
-
-**Windows:**
-```bash
-cd desktop_app
-flutter pub get
-flutter run
-```
-
-**Linux:**
-```bash
-sudo apt-get install xclip
-cd desktop_app
-flutter pub get
-flutter run
-```
-
-### Android Application
-
-**Prerequisites:**
-- Flutter SDK installed
-- Android SDK configured
-
-**Steps:**
-```bash
-cd android_app
-flutter pub get
-flutter run
-```
-
-## Usage
-
-1. Ensure both devices are connected to the same Wi-Fi network
-2. Launch the desktop application and click "Start Server"
-3. Launch the Android application and click "Start Sync"
-4. Tap your desktop's hostname under "Found Servers" to connect
-5. Copy text on either device - it will instantly appear on the other device's clipboard
-
-## Technical Details
-
-**Clipboard Detection:**
-- Desktop: Polling mechanism checks clipboard every 100ms
-- Android: Event-driven using ClipboardManager.OnPrimaryClipChangedListener
-
-**Service Discovery:**
-- Uses mDNS protocol on UDP port 5353
-- Multicast group: 224.0.0.251
-- Service type: "_clipboardsync._tcp"
-
-**Data Transfer:**
-- WebSocket protocol over TCP
-- Port: 8080
-- Text-based payload
-- Persistent bidirectional connection
-
-**Background Operation:**
-- Android uses Foreground Service to maintain clipboard monitoring when app is closed
-- Service displays persistent notification as required by Android
-
-## Platform-Specific Implementation
-
-**macOS Clipboard:**
-- Read: `Process.run('pbpaste', [])`
-- Write: `Process.start('pbcopy', [])` with stdin piping (prevents shell injection)
-
-**Windows Clipboard:**
-- Read: `Process.run('powershell', ['-command', 'Get-Clipboard'])`
-- Write: `Process.start('powershell', ['-NoProfile', '-Command', '$input | Set-Clipboard'])` with UTF-8 stdin
-
-**Linux Clipboard:**
-- Read: `Process.run('xclip', ['-selection', 'clipboard', '-o'])`
-- Write: `Process.start('xclip', ['-selection', 'clipboard'])` with stdin piping
-
-**Android Clipboard:**
-- Native ClipboardManager API via Kotlin
-- Method Channel bridge to Flutter
-- Direct API access (no shell commands needed)
-
-## Dependencies
-
-**Desktop (pubspec.yaml):**
-- flutter
-- bonsoir: ^7.1.4
-- shelf: ^1.4.0
-- shelf_web_socket: ^2.0.0
-- web_socket_channel: ^3.0.0
-
-**Android (pubspec.yaml):**
-- flutter
-- bonsoir: ^7.1.4
-
-**Android Native (build.gradle):**
-- OkHttp for WebSocket client
-- Android system APIs (ClipboardManager, NotificationCompat)
-
-## Security & Privacy
-
-- All communication occurs over local network only
-- No data is transmitted to external servers or cloud services
-- No authentication required (assumes trusted local network)
-- Clipboard content is transmitted in plain text over WebSocket
-
-## Limitations
-
-- Requires both devices on same Wi-Fi network
-- Currently supports text clipboard content only (no images or files)
-- Desktop application must remain open for sync to work
-- Android app must be started to initiate connection
-
-## Future Enhancements
-
-- Support for image and file clipboard content
-- End-to-end encryption for clipboard data
-- Multi-device support (one desktop, multiple mobile devices)
-- Clipboard history feature
-- Internet-based sync via relay server
-- iOS support
-
-## License
-
-This project is provided as-is for educational and personal use.
+The current release uses a local WebSocket connection. The active design work
+for device identity, WSS/TLS, and first-time device pairing is in
+`doc/feature/secure-device-pairing.md`.

@@ -1,5 +1,5 @@
 name: desktop_app
-description: "Cross-platform clipboard sync desktop app (Mac, Windows, Linux)"
+description: "macOS clipboard sync desktop app for Android devices"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -35,6 +35,8 @@ dependencies:
   shelf_web_socket: ^2.0.0
   web_socket_channel: ^3.0.0
   bonsoir: ^7.1.4
+  crypto: ^3.0.7
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:
